@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using hateoas.starter.Helpers;
 using hateoas.starter.Models;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
@@ -21,14 +22,14 @@ namespace hateoas.starter.Controllers
         private readonly ClientListFactory _factory;
 
         private static List<Client> _clients = JsonConvert.DeserializeObject<List<Client>>(Globals.Clients);
-        
+
         public ClientsController(ILogger<ClientsController> logger, ClientListFactory factory)
         {
             _logger = logger;
             _factory = factory;
         }
 
-        
+
         [HttpGet]
         public async Task<IActionResult> GetClients(CancellationToken cancellationToken)
         {
@@ -39,20 +40,21 @@ namespace hateoas.starter.Controllers
 
             return Ok(_clients);
         }
-        
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetClientById(string id, CancellationToken cancellationToken)
         {
             var client = _clients.FirstOrDefault(_ => _.Id == id);
-            
 
-                _factory.AddLinksToClient(HttpContext, client);
-            
+
+            _factory.AddLinksToClient(HttpContext, client);
+
             return Ok(client);
         }
-        
+
         [HttpPost("{firstname}/{lastname}/{email}/{gender}")]
-        public async Task<IActionResult> AddClientFromParams(string firstname, string lastname, string email, string gender, CancellationToken cancellationToken)
+        public async Task<IActionResult> AddClientFromParams(string firstname, string lastname, string email,
+            string gender, CancellationToken cancellationToken)
         {
             var client = new Client
             {
@@ -61,37 +63,32 @@ namespace hateoas.starter.Controllers
             };
             _clients.Add(client);
 
-            foreach (var cl in _clients)
-            {
-                _factory.AddLinksToClient(HttpContext, cl);
-            }
-            
-            return Ok(_clients);
+            _factory.AddLinksToClient(HttpContext, client);
+
+            return CreatedAtAction("GetClientById", new {id = client.Id}, client);
         }
-        
-        
+
+
         [HttpPost]
-        public async Task<IActionResult> AddClientFromBody([FromBody] Client client, CancellationToken cancellationToken)
+        public async Task<IActionResult> AddClientFromBody([FromBody] Client client,
+            CancellationToken cancellationToken)
         {
             _clients.Add(client);
-            foreach (var cl in _clients)
-            {
-                _factory.AddLinksToClient(HttpContext, cl);
-            }
-            
-            return Ok(_clients);
+
+            return CreatedAtRoute(nameof(GetClientById), new {id = client.Id});
         }
-        
+
         [HttpDelete]
         public async Task<IActionResult> DeleteClient(string id, CancellationToken cancellationToken)
         {
             _clients.Remove(_clients.FirstOrDefault(_ => _.Id == id));
-            
+
             return NoContent();
         }
-       
+
         [HttpPut]
-        public async Task<IActionResult> UpdateClient(string id, string firstname, string lastname, string email, string gender, CancellationToken cancellationToken)
+        public async Task<IActionResult> UpdateClient(string id, string firstname, string lastname, string email,
+            string gender, CancellationToken cancellationToken)
         {
             var client = _clients.FirstOrDefault(_ => _.Id == id);
 
@@ -104,27 +101,26 @@ namespace hateoas.starter.Controllers
             {
                 client.LastName = lastname;
             }
-            
+
             if (!string.IsNullOrEmpty(email))
             {
                 client.Email = email;
             }
-            
+
             if (!string.IsNullOrEmpty(gender))
             {
                 client.Gender = gender;
             }
-            
+
             foreach (var cl in _clients)
             {
                 _factory.AddLinksToClient(HttpContext, cl);
             }
-            
+
             return Ok(_clients);
         }
-        
-        /// <summary>
 
+        /// <summary>
         /// </summary>
         /// <param name="id"></param>
         /// <param name="patchDoc">
@@ -143,13 +139,13 @@ namespace hateoas.starter.Controllers
         /// </param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        
         [HttpPatch]
-        public async Task<IActionResult> UpdatePartialClient(string id, [FromBody] JsonPatchDocument<Client> patchDoc, CancellationToken cancellationToken)
+        public async Task<IActionResult> UpdatePartialClient(string id, [FromBody] JsonPatchDocument<Client> patchDoc,
+            CancellationToken cancellationToken)
         {
             var client = _clients.FirstOrDefault(_ => _.Id == id);
             patchDoc.ApplyTo(client);
-            
+
             return Ok(client);
         }
     }
